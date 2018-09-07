@@ -1,0 +1,207 @@
+service: poolie-bot-serverless
+
+frameworkVersion: ">=1.1.0 <2.0.0"
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  runtime: python3.6
+  environment:
+    db_hostname: ${self:custom.secrets.postgres_connection_details.hostname}
+    db_name: ${self:custom.secrets.postgres_connection_details.db_name}
+    db_username: ${self:custom.secrets.postgres_connection_details.username}
+    db_password: ${self:custom.secrets.postgres_connection_details.password}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - states:StartExecution
+      Resource: ${self:resources.Outputs.SlackActionStateMachine.Value}
+    - Effect: "Allow"
+      Action:
+        - states:StartExecution
+      Resource: ${self:resources.Outputs.SlackMessageStateMachine.Value}
+
+custom:
+  pythonRequirements:
+      dockerizePip: non-linux
+  secrets: ${file(./serverless_secrets.yml)}
+
+plugins:
+  - serverless-step-functions
+  - serverless-pseudo-parameters
+  - serverless-python-requirements
+  # - serverless-plugin-include-dependencies
+
+package:
+  include:
+    - functions/**
+
+functions:
+
+  # Entry Point (Handle Slack events and challenge test.)
+  handle_message:
+    handler: functions/slack.handle_message
+    memorySize: 128
+    events:
+      - http:
+          path: event/message
+          method: post
+          cors: true
+    environment:
+      slack_token: ${self:custom.secrets.slack_token}
+      statemachine_arn: ${self:resources.Outputs.SlackMessageStateMachine.Value}
+  
+  handle_action:
+    handler: functions/slack.handle_action
+    memorySize: 128
+    events:
+      - http:
+          path: event/action
+          method: post
+          cors: true
+    environment:
+      slack_token: ${self:custom.secrets.slack_token}
+      statemachine_arn: ${self:resources.Outputs.SlackActionStateMachine.Value}
+  
+  # Create DB Tables before anything else happens
+  create_tables:
+    handler: functions/db_util.create_tables
+    memory_size: 128
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-83267ec5
+        - subnet-4670a831
+        - subnet-3995275c
+
+  # Send text to DialogFlow
+  parse_message:
+    handler: functions/dialogflow.parse_message
+    memorySize: 128
+    environment:
+      dialog_access_token: ${self:custom.secrets.dialog_access_token}
+  
+  ## Actions
+  # Create a competition
+  create_competition:
+    handler: functions/competition.create_competition
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-83267ec5
+        - subnet-4670a831
+        - subnet-3995275c
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  confirm_competition:
+    handler: functions/competition.confirm_competition
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-83267ec5
+        - subnet-4670a831
+        - subnet-3995275c
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  cancel_competition:
+    handler: functions/competition.cancel_competition
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-83267ec5
+        - subnet-4670a831
+        - subnet-3995275c
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  # Send basic message to Slack
+  send_message:
+    handler: functions/slack.send_message
+    memorySize: 128
+    environment:
+      slack_token: ${self:custom.secrets.slack_token}
+  
+
+stepFunctions:
+  stateMachines:
+
+    slackactionstepfunction:
+      name: slackactionstepfunction
+      definition:
+        Comment: "Step function for handling actions from slack."
+        StartAt: ActionChoice
+        States:
+          ActionChoice:
+            Type: Choice
+            Choices:
+              - Variable: "$.action"
+                StringEquals: "poolie_confim_competition_confirm"
+                Next: ConfirmCompetition
+              - Variable: "$.action"
+                StringEquals: "poolie_confim_competition_cancel"
+                Next: CancelCompetition
+            Default: ConfirmCompetition
+          ConfirmCompetition:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-confirm_competition"
+            End: true
+          CancelCompetition:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-cancel_competition"
+            End: true
+
+    slackmessagestepfunction:
+      name: slackmessagestepfunction
+      definition:
+        Comment: "Step function for parsing and executing a command to poolie bot."
+        StartAt: CreateTables
+        States:
+          CreateTables:  # Create the DB Tables to operate on (probably a better spot for this, but for now it's here)
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-create_tables"
+            Next: ParseMessage
+          ParseMessage:  # Send the text to DialogFlow to determine the action. 
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-parse_message"
+            Next: ActionChoice
+          ActionChoice:  # Depending on DialogFlow intent detection, execute the action.
+            Type: Choice
+            Choices:
+              - Variable: "$.dialogflow_event.action"
+                StringEquals: "create_competition"
+                Next: CreateCompetition
+            Default: SendMessage
+          CreateCompetition:  # Create a new competition in the given channel with user as the Admin.
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-create_competition"
+            Next: SendMessage
+          SendMessage:  # Send a message, either unmatched text from DialogFlow, or provided text from an action.
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-send_message"
+            End: true
+
+resources:
+  Outputs:
+    SlackActionStateMachine:
+      Description: "The ARN of the slack action state machine"
+      Value:
+        Ref: Slackactionstepfunction
+    SlackMessageStateMachine:
+      Description: "The ARN of the slack message state machine"
+      Value:
+        Ref: Slackmessagestepfunction
