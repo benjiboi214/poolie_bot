@@ -2,3 +2,5 @@
 serverless_secrets.yml
 .serverless
 .vscode
+node_modules/
+examples/
