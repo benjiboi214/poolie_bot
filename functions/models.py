@@ -37,3 +37,8 @@ class Competition(BaseModel):
     channel = CharField(max_length=20)
     status = CharField(choices=STATUS_CHOICES, max_length=1)
     admin = ForeignKeyField(User, backref='admin_competitions')
+
+
+class Participant(BaseModel):
+    user = ForeignKeyField(User, backref='participants')
+    competition = ForeignKeyField(Competition, backref='participants')

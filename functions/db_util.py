@@ -32,8 +32,8 @@ class DatabaseManager:
 def create_tables(event, context):
     print("create_tables: Receieved event - ", event)
 
-    from models import User, Competition
-    tables = [User, Competition]
+    from models import User, Competition, Participant
+    tables = [User, Competition, Participant]
     print("create_tables: Creating tables {}".format(tables))
     with DatabaseManager() as db_connection:
         db_connection.create_tables(tables)

@@ -108,6 +108,18 @@ functions:
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
   
+  register_player:
+    handler: functions/participant.register_participant
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
   confirm_competition:
     handler: functions/competition.confirm_competition
     memory_size: 128
@@ -162,10 +174,14 @@ stepFunctions:
           ConfirmCompetition:
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-confirm_competition"
-            End: true
+            Next: SendMessage
           CancelCompetition:
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-cancel_competition"
+            End: true
+          SendMessage:  # Send a message, either unmatched text from DialogFlow, or provided text from an action.
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-send_message"
             End: true
 
     slackmessagestepfunction:
@@ -192,10 +208,17 @@ stepFunctions:
               - Variable: "$.dialogflow_event.action"
                 StringEquals: "create_competition"
                 Next: CreateCompetition
+              - Variable: "$.dialogflow_event.action"
+                StringEquals: "register_player"
+                Next: RegisterPlayer
             Default: SendMessage
           CreateCompetition:  # Create a new competition in the given channel with user as the Admin.
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-create_competition"
+            Next: SendMessage
+          RegisterPlayer:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-register_player"
             Next: SendMessage
           SendMessage:  # Send a message, either unmatched text from DialogFlow, or provided text from an action.
             Type: Task

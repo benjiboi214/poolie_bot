@@ -85,6 +85,12 @@ def confirm_competition(event, context):
         print("response is now: ", response_message)
         r = requests.post(event['response_url'], json = response_message)
 
+        message = {
+            "destination": competition.channel,
+            "text": "Competition has been created by <@{}>. To register, try sending a message in this channel such as:\n '<@UCGV1M7GC> Register me'".format(user.slack_id)
+        }
+        event['action_event'] = message
+
     print(r.text)
     return event
 
