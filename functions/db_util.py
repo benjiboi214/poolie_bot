@@ -21,7 +21,7 @@ class DatabaseManager:
     
     def __enter__(self):
         print("DatabaseManager: __enter__ function call")
-        self.connection.connect()
+        self.connection.connect(reuse_if_open=True)
         return self.connection
     
     def __exit__(self, type, value, traceback):

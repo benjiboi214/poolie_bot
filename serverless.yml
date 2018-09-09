@@ -39,6 +39,12 @@ package:
 functions:
 
   # Entry Point (Handle Slack events and challenge test.)
+  get_user_profile:
+    handler: functions/slack.get_user_profile
+    memorySize: 128
+    environment:
+      slack_token: ${self:custom.secrets.slack_token}
+
   handle_message:
     handler: functions/slack.handle_message
     memorySize: 128
@@ -48,8 +54,14 @@ functions:
           method: post
           cors: true
     environment:
-      slack_token: ${self:custom.secrets.slack_token}
       statemachine_arn: ${self:resources.Outputs.SlackMessageStateMachine.Value}
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
   
   handle_action:
     handler: functions/slack.handle_action
@@ -92,9 +104,6 @@ functions:
       securityGroupIds:
         - sg-090ec54b62c77e92e
       subnetIds:
-        - subnet-83267ec5
-        - subnet-4670a831
-        - subnet-3995275c
         - subnet-04795c50f1c75f4e7
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
@@ -107,9 +116,6 @@ functions:
       securityGroupIds:
         - sg-090ec54b62c77e92e
       subnetIds:
-        - subnet-83267ec5
-        - subnet-4670a831
-        - subnet-3995275c
         - subnet-04795c50f1c75f4e7
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
@@ -122,9 +128,6 @@ functions:
       securityGroupIds:
         - sg-090ec54b62c77e92e
       subnetIds:
-        - subnet-83267ec5
-        - subnet-4670a831
-        - subnet-3995275c
         - subnet-04795c50f1c75f4e7
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
@@ -174,6 +177,10 @@ stepFunctions:
           CreateTables:  # Create the DB Tables to operate on (probably a better spot for this, but for now it's here)
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-create_tables"
+            Next: GetSlackProfile
+          GetSlackProfile:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-get_user_profile"
             Next: ParseMessage
           ParseMessage:  # Send the text to DialogFlow to determine the action. 
             Type: Task

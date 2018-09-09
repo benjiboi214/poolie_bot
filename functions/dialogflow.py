@@ -13,7 +13,7 @@ def parse_message(event, context):
     print("parse_message: Receieved event - ", event)
 
     sessionId = "".join(choice(allchar) for x in range(36))
-    query = event['event']['text']
+    query = event['slack_event']['event']['text']
     payload = {
         "v": "20150910",
         "lang": "en",
@@ -25,12 +25,10 @@ def parse_message(event, context):
     response_json = r.json()
     print("Recieved Response: ", response_json)
 
-    return {
-        "slack_event": event,
-        "dialogflow_event": {
-            "sessionId": sessionId,
-            "query": query,
-            "action": response_json['result']['action'],
-            "response": response_json['result']['fulfillment']['speech']
-        }
+    event["dialogflow_event"] = {
+        "sessionId": sessionId,
+        "query": query,
+        "action": response_json['result']['action'],
+        "response": response_json['result']['fulfillment']['speech']
     }
+    return event
