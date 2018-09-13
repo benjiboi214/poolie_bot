@@ -77,7 +77,7 @@ functions:
   
   # Create DB Tables before anything else happens
   create_tables:
-    handler: functions/db_util.create_tables
+    handler: functions/database/util.create_tables
     memory_size: 128
     vpc:
       securityGroupIds:
@@ -134,6 +134,18 @@ functions:
   
   cancel_competition:
     handler: functions/competition.cancel_competition
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  close_registration:
+    handler: functions/competition.close_registration
     memory_size: 128
     timeout: 30
     vpc:
@@ -211,6 +223,9 @@ stepFunctions:
               - Variable: "$.dialogflow_event.action"
                 StringEquals: "register_player"
                 Next: RegisterPlayer
+              - Variable: "$.dialogflow_event.action"
+                StringEquals: "close_registration"
+                Next: CloseRegistration
             Default: SendMessage
           CreateCompetition:  # Create a new competition in the given channel with user as the Admin.
             Type: Task
@@ -219,6 +234,10 @@ stepFunctions:
           RegisterPlayer:
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-register_player"
+            Next: SendMessage
+          CloseRegistration:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-close_registration"
             Next: SendMessage
           SendMessage:  # Send a message, either unmatched text from DialogFlow, or provided text from an action.
             Type: Task

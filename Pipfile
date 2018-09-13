@@ -8,6 +8,8 @@ slackclient = "==1.2.1"
 peewee = "==3.6.4"
 "psycopg2-binary" = "==2.7.5"
 requests = "*"
+botocore = "*"
+"boto3" = "*"
 
 [dev-packages]
 pylint = "*"

@@ -1,12 +1,13 @@
-import os, sys
+import datetime
+import os
+import sys
 here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
-from peewee import Model
-from peewee import CharField, ForeignKeyField, DateTimeField, TimestampField
-from db_util import db_connection
-import datetime
+from peewee import (CharField, DateTimeField, ForeignKeyField, Model,
+                    TimestampField)
 
+from connection import db_connection
 
 class BaseModel(Model):
     created_date = DateTimeField(default=datetime.datetime.now)

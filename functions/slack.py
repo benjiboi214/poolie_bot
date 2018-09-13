@@ -1,15 +1,15 @@
-import os, sys
+import json
+import os
+import sys
+from urllib.parse import parse_qs
 here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
-import json
 import boto3
-client = boto3.client('stepfunctions')
-
-from urllib.parse import parse_qs
-from slackclient import SlackClient
 from peewee import IntegrityError
+from slackclient import SlackClient
 
+client = boto3.client('stepfunctions')
 
 def handle_message(event, context):
     print("handle_message: Receieved event - ", event)

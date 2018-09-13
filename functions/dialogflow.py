@@ -1,11 +1,11 @@
-import os, sys
+import os
+import string
+import sys
+from random import choice
 here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
-import string
-
 from botocore.vendored import requests
-from random import *
 
 allchar = string.ascii_letters + string.punctuation + string.digits
 
