@@ -126,9 +126,14 @@ def close_registration(event, context):
         if competition and competition.status == Competition.REGISTERING:
             if user_is_admin_of_competition(user, competition):
                 # Comp exists in right state, set the status and send message
+                participants = [x for x in competition.participants]
+                text = "Are you sure you want to close registration? \n" + "Current participants are: \n"
+                for participant in participants:
+                    text += "<@{}>".format(participant.user.slack_id) + " \n"
+                print("close_registration: list of participants is - ", participants)
                 event['action_event'] = {
                     "destination": user.slack_id,
-                    "text": "Are you sure you want to close registration?",
+                    "text": text,
                     "attachments": [
                         {
                             "text": "Confirm or Cancel the close of registration",

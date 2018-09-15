@@ -15,7 +15,7 @@ def user_is_admin_of_competition(user, competition):
 def get_admin_error_message(user, competition):
     return {
         "destination": user.slack_id,
-        "text": "You're not the admin of <@{}>. Ask <@{}> to complete the action!".format(competition.channel, competition.admin.slack_id)
+        "text": "You're not the admin of <#{}>. Ask <@{}> to complete the action!".format(competition.channel, competition.admin.slack_id)
     }
 
 def get_competition_not_found_message(user):
