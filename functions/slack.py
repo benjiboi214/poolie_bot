@@ -37,7 +37,8 @@ def handle_action(event, context):
     print("handle_action: Receieved event - ", event)
 
     action_payload = json.loads(parse_qs(event['body'])['payload'][0])
-    action_payload['action'] = action_payload['callback_id'] + '_' + action_payload['actions'][0]['name']
+    action_payload['action'] = action_payload['callback_id']
+    action_payload['sub_action'] = action_payload['actions'][0]['name']
 
     print("handle_action: Parsed event payload - ", action_payload)
 
@@ -98,17 +99,3 @@ def get_user_profile(event, context):
         user=event['slack_event']['event']['user'])
     event['slack_profile'] = response['user']
     return event
-
-
-
-    #     with DatabaseManager()as db_connection:
-    #         try:
-    #             with db_connection.atomic():
-    #                 SlackEvent.create(event_id=data['event']['client_msg_id'])
-    #             import boto3
-    #             client = boto3.client('stepfunctions')
-    #             response = client.start_execution(
-    #                 stateMachineArn=os.environ['statemachine_arn'],
-    #                 input=json.dumps(data))
-    #         except IntegrityError:
-    #             print("Event Already processed. Not running statemachine")

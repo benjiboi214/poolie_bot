@@ -63,6 +63,22 @@ functions:
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
   
+  drop_tables_debug:
+    handler: functions/database/util.drop_tables
+    memorySize: 128
+    events:
+      - http:
+          path: event/drop_table
+          method: post
+          cors: true
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
   handle_action:
     handler: functions/slack.handle_action
     memorySize: 128
@@ -145,7 +161,7 @@ functions:
         - subnet-0cffd0ce0d1db05c5
   
   close_registration:
-    handler: functions/competition.close_registration
+    handler: functions/registration.close_registration
     memory_size: 128
     timeout: 30
     vpc:
@@ -156,6 +172,66 @@ functions:
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
   
+  confirm_close_registration:
+    handler: functions/registration.confirm_close_registration
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  cancel_close_registration:
+    handler: functions/registration.cancel_close_registration
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  select_draw_times:
+    handler: functions/draw.select_draw_times
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+  
+  select_draw_finals:
+    handler: functions/draw.select_draw_finals
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+
+  generate_draw:
+    handler: functions/draw.generate_draw
+    memory_size: 128
+    timeout: 30
+    vpc:
+      securityGroupIds:
+        - sg-090ec54b62c77e92e
+      subnetIds:
+        - subnet-04795c50f1c75f4e7
+        - subnet-0ba7bd14367dae39a
+        - subnet-0cffd0ce0d1db05c5
+
   # Send basic message to Slack
   send_message:
     handler: functions/slack.send_message
@@ -177,12 +253,38 @@ stepFunctions:
             Type: Choice
             Choices:
               - Variable: "$.action"
-                StringEquals: "poolie_confim_competition_confirm"
-                Next: ConfirmCompetition
+                StringEquals: "poolie_confim_competition"
+                Next: ConfirmCompChoice
               - Variable: "$.action"
-                StringEquals: "poolie_confim_competition_cancel"
+                StringEquals: "poolie_close_registration"
+                Next: CloseRegistrationChoice
+              - Variable: "$.action"
+                StringEquals: "poolie_select_draw_times_round"
+                Next: SelectDrawTimes
+              - Variable: "$.action"
+                StringEquals: "poolie_select_draw_finals"
+                Next: SelectDrawFinals
+            Default: SendMessage  ## TBA FIND PROPER DEFAULT FOR ACTION
+          ConfirmCompChoice:
+            Type: Choice
+            Choices:
+              - Variable: "$.sub_action"
+                StringEquals: "confirm"
+                Next: ConfirmCompetition
+              - Variable: "$.sub_action"
+                StringEquals: "cancel"
                 Next: CancelCompetition
-            Default: ConfirmCompetition
+            Default: CancelCompetition
+          CloseRegistrationChoice:
+            Type: Choice
+            Choices:
+              - Variable: "$.sub_action"
+                StringEquals: "confirm"
+                Next: ConfirmCloseRegistration
+              - Variable: "$.sub_action"
+                StringEquals: "cancel"
+                Next: CancelCloseRegistration
+            Default: CancelCloseRegistration
           ConfirmCompetition:
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-confirm_competition"
@@ -191,6 +293,36 @@ stepFunctions:
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-cancel_competition"
             End: true
+          ConfirmCloseRegistration:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-confirm_close_registration"
+            Next: GenerateDrawChoice
+          GenerateDrawChoice:
+            Type: Choice
+            Choices:
+              - Variable: "$.generate_draw"
+                BooleanEquals: true
+                Next: GenerateDraw
+              - Variable: "$.generate_draw"
+                BooleanEquals: false
+                Next: SendMessage
+            Default: SendMessage
+          GenerateDraw:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-generate_draw"
+            Next: SendMessage
+          CancelCloseRegistration:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-cancel_close_registration"
+            Next: SendMessage
+          SelectDrawTimes:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-select_draw_times"
+            Next: GenerateDraw
+          SelectDrawFinals:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-select_draw_finals"
+            Next: GenerateDraw
           SendMessage:  # Send a message, either unmatched text from DialogFlow, or provided text from an action.
             Type: Task
             Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-send_message"

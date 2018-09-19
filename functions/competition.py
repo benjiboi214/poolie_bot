@@ -4,8 +4,6 @@ here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
 import requests
-from playhouse.shortcuts import model_to_dict
-
 from slack import generate_button_attachment
 
 from database.models import Competition, User
@@ -44,7 +42,7 @@ def create_competition(event, context):
                         ]
                     }
                 ]
-            }            
+            }
         else:
             message = {
                 "destination": user.slack_id,
