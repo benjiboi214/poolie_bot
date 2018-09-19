@@ -5,7 +5,7 @@ here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
 from peewee import (CharField, DateTimeField, ForeignKeyField, Model,
-                    TimestampField)
+                    TimestampField, SmallIntegerField, BooleanField)
 
 from connection import db_connection
 
@@ -43,3 +43,19 @@ class Competition(BaseModel):
 class Participant(BaseModel):
     user = ForeignKeyField(User, backref='participants')
     competition = ForeignKeyField(Competition, backref='participants')
+
+class Draw(BaseModel):
+    competition = ForeignKeyField(Competition, backref='draw')
+    times_around = SmallIntegerField(null=True)
+    finals = BooleanField(null=True)
+    
+class Round(BaseModel):
+    draw = ForeignKeyField(Draw, backref='rounds')
+    number = SmallIntegerField()
+
+class Match(BaseModel):
+    draw_round = ForeignKeyField(Round, backref='matches')
+    home_participant = ForeignKeyField(Participant, backref='home_matches')
+    away_participant = ForeignKeyField(Participant, backref='away_matches')
+    winner = ForeignKeyField(Participant, backref='wins')
+    loser = ForeignKeyField(Participant, backref='losses')
