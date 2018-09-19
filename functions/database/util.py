@@ -6,18 +6,31 @@ sys.path.append(here)
 from playhouse.shortcuts import model_to_dict
 
 from connection import DatabaseManagerBase
-from models import Competition, Participant, User
+from models import Competition, Participant, User, Draw, Round, Match
 
 
 def create_tables(event, context):
     print("create_tables: Receieved event - ", event)
 
-    tables = [User, Competition, Participant]
+    tables = [User, Competition, Participant, Draw, Round, Match]
     print("create_tables: Creating tables {}".format(tables))
     with DatabaseManagerBase() as db_connection:
         db_connection.connection.create_tables(tables)
     print("create_tables: Finished creating tables")
     return event
+
+def drop_tables(event, context):
+    print("drop_tables: Receieved event - ", event)
+
+    tables = [User, Competition, Participant, Draw, Round, Match]
+    print("drop_tables: Dropping tables {}".format(tables))
+    with DatabaseManagerBase() as db_connection:
+        db_connection.connection.drop_tables(tables)
+    print("drop_tables: Finished Dropping tables")
+    return {
+        "statusCode": 200,
+        "body": "Success"
+    }
 
 
 class DatabaseManager(DatabaseManagerBase):
@@ -76,4 +89,13 @@ class DatabaseManager(DatabaseManagerBase):
             created = True
             print("{context}: Competition created {model}".format(context=self.context, model=model_to_dict(competition)))
         return competition, created
-
+    
+    def get_or_create_draw(self, competition):
+        print("DEBUG get_or_create_draw: Function Entry")
+        draw, created = Draw.get_or_create(
+            competition=competition)
+        if created:
+            print("{context}: Draw created: {model}".format(context=self.context, model=model_to_dict(draw)))
+        else:
+            print("{context}: User retrieved: {model}".format(context=self.context, model=model_to_dict(draw)))
+        return draw, created
