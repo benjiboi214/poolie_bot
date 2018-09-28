@@ -4,7 +4,7 @@ here = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(here)
 
 import requests
-from slack import generate_button_attachment
+from slack import generate_button_attachment, send_message
 
 from database.models import Competition, User
 from database.util import DatabaseManager
@@ -42,7 +42,7 @@ def close_registration(event, context):
                             ]
                         }
                     ]
-                }            
+                }
             else:
                 # User is not the admin. Advise them.
                 event['action_event'] = get_admin_error_message(user, competition)
@@ -66,6 +66,13 @@ def confirm_close_registration(event, context):
                 competition.status = Competition.GENERATE_DRAW
                 competition.save()
                 event['generate_draw'] = True
+
+                send_message(
+                    {"action_event": {
+                            "destination": competition.channel,
+                            "text": "Registration closed. Generating the Draw."
+                    }},
+                    {})
 
                 response_message = event['original_message']
                 del response_message['attachments'][0]['actions']

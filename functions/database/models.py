@@ -41,7 +41,7 @@ class Competition(BaseModel):
 
 
 class Participant(BaseModel):
-    user = ForeignKeyField(User, backref='participants')
+    user = ForeignKeyField(User, backref='participants', null=True)
     competition = ForeignKeyField(Competition, backref='participants')
 
 class Draw(BaseModel):
@@ -57,5 +57,5 @@ class Match(BaseModel):
     draw_round = ForeignKeyField(Round, backref='matches')
     home_participant = ForeignKeyField(Participant, backref='home_matches')
     away_participant = ForeignKeyField(Participant, backref='away_matches')
-    winner = ForeignKeyField(Participant, backref='wins')
-    loser = ForeignKeyField(Participant, backref='losses')
+    winner = ForeignKeyField(Participant, backref='wins', null=True)
+    loser = ForeignKeyField(Participant, backref='losses', null=True)

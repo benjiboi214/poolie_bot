@@ -6,13 +6,15 @@ sys.path.append(here)
 import requests
 from playhouse.shortcuts import model_to_dict
 
-from database.models import Competition, User, Draw
+from database.models import Competition, User, Draw, Round, Match, Participant
 from database.util import DatabaseManager
+from rounds import generate_round_lineup
 
 from slack import generate_button_attachment
 
 from misc import (get_admin_error_message, get_competition_not_found_message,
                    user_is_admin_of_competition)
+from draw_data.matchups import draw_data
 
 def generate_draw(event, context):
     print("generate_draw: Receieved event - ", event)
@@ -66,18 +68,22 @@ def generate_draw(event, context):
                     }
                 else:
                     print("Wew, we have collected all the info we need!")
-                    pass
-                    # Get a count of the competitors
-                    # Determine the number of rounds
-                    # 
 
-
-
-
-
-
-
-
+                    participants = [participant for participant in Participant.select().where((Participant.competition == competition.id))]
+                    print("Times around: ", draw.times_around)
+                    rounds = create_round_models(participants, competition, draw)
+                    print("Created rounds: ", rounds)
+                    text = "Draw Generated. Playing a {} round season, ".format(str(draw.times_around))
+                    if draw.finals:
+                        text += "with a finals series.\n"
+                    else:
+                        text += "without a finals series.\n"
+                    text += "Round 1/{} Draw:\n".format(str(draw.times_around))
+                    text += generate_round_lineup(rounds[1]['matches'])
+                    event['action_event'] = {
+                        "destination": competition.channel,
+                        "text": text
+                    }
             else:
                 # User is not the admin. Advise them.
                 event['action_event'] = get_admin_error_message(user, competition)
@@ -146,3 +152,49 @@ def select_draw_finals(event, context):
             # No active competition found
             event['action_event'] = get_competition_not_found_message(user)
     return event
+
+def create_round_models(players, competition, draw):
+    # players is an array of participants
+    # competition is the comp model
+    # draw is the parent draw object
+    times_around = draw.times_around
+    with DatabaseManager("create_draw_models") as db:
+        number_players = len(players)
+        if number_players % 2 == 1:
+            # odd number
+            # create draw participant
+            bye, created = db.get_or_create_participant(None, competition)
+            players.append(bye)
+            number_players += 1
+        matchups = draw_data[number_players]
+
+        players.insert(0, None)
+        return_rounds = {}
+        round_count = 1
+        for time_around in range(times_around):
+            time_around += 1
+            if time_around % 2 == 1:
+                # Normal Round
+                for match_round in matchups['rounds']:
+                    working_round = Round.create(draw=draw, number=round_count)
+                    return_rounds[round_count] = {'round': working_round, 'matches': []}
+                    for match in match_round:
+                        match_model = Match.create(
+                            draw_round=working_round,
+                            home_participant=players[match['home']],
+                            away_participant=players[match['away']])
+                        return_rounds[round_count]['matches'].append(match_model)
+                    round_count +=1
+            else:
+                for match_round in matchups['rounds']:
+                    working_round = Round.create(draw=draw, number=round_count)
+                    return_rounds[round_count] = {'round': working_round, 'matches': []}
+                    for match in match_round:
+                        match_model = Match.create(
+                            draw_round=working_round,
+                            home_participant=players[match['away']],
+                            away_participant=players[match['home']])
+                        return_rounds[round_count]['matches'].append(match_model)
+                    round_count +=1
+        return return_rounds
+

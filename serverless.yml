@@ -183,6 +183,8 @@ functions:
         - subnet-04795c50f1c75f4e7
         - subnet-0ba7bd14367dae39a
         - subnet-0cffd0ce0d1db05c5
+    environment:
+      slack_token: ${self:custom.secrets.slack_token}
   
   cancel_close_registration:
     handler: functions/registration.cancel_close_registration
